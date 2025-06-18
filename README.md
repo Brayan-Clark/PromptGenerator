@@ -15,8 +15,8 @@ Une application de création et de gestion de prompts pour les modèles de langa
 
 1. Cloner le dépôt :
    ```bash
-   git clone https://github.com/votre-utilisateur/PromptCraft.git
-   cd PromptCraft
+   git clone https://github.com/Brayan-Clark/PromptGenerator.git
+   cd PromptGenerator
    ```
 
 2. Installer les dépendances :
@@ -28,7 +28,7 @@ Une application de création et de gestion de prompts pour les modèles de langa
 
 3. Créer un fichier `.env` à la racine du projet :
    ```env
-   VITE_APP_NAME=PromptCraft
+   VITE_APP_NAME=PromptGenerator
    # Optionnel : définir votre clé API par défaut ici
    # VITE_OPENAI_API_KEY=votre-cle-api-ici
    ```
@@ -82,4 +82,4 @@ Pour toute question ou suggestion, veuillez ouvrir une issue sur GitHub.
 
 ---
 
-Développé avec ❤️ par [Votre Nom]
+Développé avec ❤️ par [Brayan Clark]
