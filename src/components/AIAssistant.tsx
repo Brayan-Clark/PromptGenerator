@@ -96,7 +96,7 @@ const useConversationManager = () => {
       if (!activeId) return [];
       
       const savedMessages = loadFromLocalStorage<Message[]>(`${MESSAGES_KEY_PREFIX}${activeId}`, []);
-      console.log('Chargement des messages pour', activeId, ':', savedMessages);
+      //console.log('Chargement des messages pour', activeId, ':', savedMessages);
       
       // S'assurer que les timestamps sont des objets Date
       return savedMessages.map(msg => ({
@@ -104,7 +104,7 @@ const useConversationManager = () => {
         timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
       }));
     } catch (error) {
-      console.error('Erreur lors du chargement des messages:', error);
+      //console.error('Erreur lors du chargement des messages:', error);
       return [];
     }
   });
@@ -116,7 +116,7 @@ const useConversationManager = () => {
       localStorage.setItem(key, JSON.stringify(value));
       // Vérifier que la sauvegarde a fonctionné
       const savedValue = localStorage.getItem(key);
-      console.log(`Vérification de la sauvegarde pour ${key}:`, savedValue);
+      //console.log(`Vérification de la sauvegarde pour ${key}:`, savedValue);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde dans le localStorage:', error);
     }
@@ -151,7 +151,7 @@ const useConversationManager = () => {
 
   const loadConversation = useCallback((conversationId: string) => {
     try {
-      console.log(`Chargement de la conversation: ${conversationId}`);
+      //console.log(`Chargement de la conversation: ${conversationId}`);
       
       // Mettre à jour l'ID de la conversation active
       setActiveConversationId(conversationId);
@@ -210,7 +210,7 @@ const useConversationManager = () => {
 
   const saveMessages = useCallback((conversationId: string, messagesToSave: Message[]) => {
     try {
-      console.log('Sauvegarde des messages pour', conversationId, ':', messagesToSave);
+      // console.log('Sauvegarde des messages pour', conversationId, ':', messagesToSave);
       
       // Sauvegarder les messages dans le state
       setMessages(messagesToSave);
@@ -370,10 +370,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
   // Initialisation au chargement du composant
   useEffect(() => {
-    console.log('Initialisation du composant AIAssistant');
+    //console.log('Initialisation du composant AIAssistant');
     
     const initialize = async () => {
-      console.log('Début de l\'initialisation...');
+      //console.log('Début de l\'initialisation...');
       // Vérifier si le localStorage est disponible
       const isLocalStorageAvailable = (() => {
         try {
@@ -387,7 +387,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         }
       })();
       
-      console.log('localStorage disponible:', isLocalStorageAvailable);
+      //console.log('localStorage disponible:', isLocalStorageAvailable);
       
       if (!isLocalStorageAvailable) {
         console.error('Impossible d\'accéder au localStorage. Les conversations ne seront pas sauvegardées.');
@@ -396,7 +396,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
       
       // Charger les conversations
       const loadedConversations = loadFromLocalStorage<Conversation[]>(CONVERSATIONS_KEY, []);
-      console.log('Conversations chargées:', loadedConversations);
+      //console.log('Conversations chargées:', loadedConversations);
       
       if (loadedConversations.length === 0) {
         console.log('Aucune conversation trouvée, création d\'une nouvelle conversation');
@@ -1017,7 +1017,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
   // Rendu du composant principal
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div className="flex flex-col h-[96vh] bg-gray-900 text-white rounded-lg">
       {/* En-tête */}
       <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
         <div className="flex items-center space-x-4">
@@ -1032,9 +1032,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
             <h1 className="text-lg font-semibold">{name}</h1>
             <p className="text-xs text-gray-400">{description}</p>
           </div>
-          <div className="hidden md:block">
+          {/* <div className="hidden md:block">
             {renderApiStatus()}
-          </div>
+          </div> */}
         </div>
         
         <div className="flex items-center space-x-2">

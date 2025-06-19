@@ -2,6 +2,7 @@ export interface Prompt {
   id: string;
   title: string;
   content: string;
+  systemPrompt?: string;
   description?: string;
   category: string;
   tags: string[];
