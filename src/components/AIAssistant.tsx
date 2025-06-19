@@ -464,6 +464,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading || !activeConversationId) return;
 
+    // Créer le message utilisateur
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input.trim(),
@@ -472,7 +473,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
       conversationId: activeConversationId
     };
 
-    // Mettre à jour les messages
+    // Mettre à jour les messages avec le message utilisateur
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     saveMessages(activeConversationId, updatedMessages);
@@ -489,12 +490,28 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     setError(null);
 
     try {
-      // Générer une réponse de l'IA
-      const response = await fetchAIResponse(input.trim());
+      // Vérifier la connexion internet avant d'envoyer la requête
+      if (!navigator.onLine) {
+        throw new Error('Pas de connexion internet. Veuillez vérifier votre connexion et réessayer.');
+      }
+
+      // Vérifier que la clé API est définie
+      if (!apiKey) {
+        throw new Error('Aucune clé API configurée. Veuillez configurer une clé API dans les paramètres.');
+      }
+
+      // Générer une réponse de l'IA avec un timeout
+      const response = await Promise.race([
+        fetchAIResponse(input.trim()),
+        new Promise<string>((_, reject) => 
+          setTimeout(() => reject(new Error('La requête a pris trop de temps. Veuillez réessayer.')), 30000)
+        )
+      ]);
       
       // Générer des suggestions de modèles d'IA uniquement pour le premier message
       const modelSuggestions = isFirstMessage ? generateModelSuggestions(input.trim()) : [];
       
+      // Créer le message de l'assistant
       const assistantMessage: Message = {
         id: Date.now().toString(),
         content: response,
@@ -519,7 +536,27 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
       
     } catch (err) {
       console.error('Error getting AI response:', err);
-      setError('Désolé, une erreur est survenue. Veuillez réessayer.');
+      
+      // Déterminer le message d'erreur approprié en fonction du type d'erreur
+      let errorMessage = 'Désolé, une erreur est survenue. Veuillez réessayer.';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('401')) {
+          errorMessage = 'Erreur d\'authentification. Votre clé API est peut-être invalide ou expirée.';
+        } else if (err.message.includes('429')) {
+          errorMessage = 'Limite de requêtes dépassée. Veuillez patienter avant de réessayer ou mettez à jour votre abonnement.';
+        } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          errorMessage = 'Impossible de se connecter au service. Vérifiez votre connexion Internet.';
+        } else if (err.message.includes('timeout') || err.message.includes('trop de temps')) {
+          errorMessage = 'La requête a pris trop de temps. Vérifiez votre connexion Internet ou réessayez plus tard.';
+        } else {
+          // Utiliser le message d'erreur original s'il est pertinent
+          errorMessage = err.message || errorMessage;
+        }
+      }
+      
+      console.log('Message d\'erreur affiché à l\'utilisateur:', errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -605,7 +642,35 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     });
   };
 
-  // Memoized fetchAIResponse function with proper error handling
+  // Liste des modèles disponibles par fournisseur
+  const availableModels = useMemo(() => ({
+    openai: [
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', freeTier: true },
+      { id: 'gpt-4', name: 'GPT-4', freeTier: false },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', freeTier: false }
+    ],
+    openrouter: [
+      { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT-3.5 Turbo', freeTier: true },
+      { id: 'openai/gpt-4', name: 'OpenAI GPT-4', freeTier: false },
+      { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', freeTier: true },
+      { id: 'anthropic/claude-3-sonnet', name: 'Claude 3 Sonnet', freeTier: false }
+    ]
+  }), []);  
+
+  // État pour le modèle sélectionné
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
+  // Définir le modèle par défaut (gratuit) au chargement
+  useEffect(() => {
+    if (apiProvider) {
+      const freeModel = availableModels[apiProvider].find(m => m.freeTier);
+      if (freeModel) {
+        setSelectedModel(freeModel.id);
+      }
+    }
+  }, [apiProvider, availableModels]);
+
+  // Fonction pour obtenir une réponse de l'IA avec gestion d'erreur détaillée
   const fetchAIResponse = useCallback(async (message: string): Promise<string> => {
     // If no API key is provided, use simulation mode
     if (!apiKey) {
@@ -636,6 +701,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const provider: ApiProvider = apiProvider || 'openai'; // Par défaut à OpenAI
     
     try {
+      // Déterminer le modèle en fonction du fournisseur
+      const defaultModels = {
+        openai: 'gpt-3.5-turbo',  // Modèle par défaut pour OpenAI
+        openrouter: 'openai/gpt-3.5-turbo'  // Modèle par défaut pour OpenRouter
+      };
+
       // Configuration de base pour la requête
       const requestConfig = {
         method: 'POST',
@@ -643,12 +714,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
           ...(provider === 'openrouter' && {
-            'HTTP-Referer': window.location.href,
+            'HTTP-Referer': window.location.origin || 'http://localhost:3000',
             'X-Title': 'PromptCraft AI Assistant'
           })
         },
         body: JSON.stringify({
-          model: 'gpt-4', // Modèle par défaut, peut être remplacé par settings.defaultModel
+          model: defaultModels[provider], // Utilise le modèle par défaut selon le fournisseur
           messages: [
             {
               role: 'system',
@@ -663,6 +734,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           max_tokens: 1000
         })
       };
+      
+      console.log('Configuration de la requête:', {
+        provider,
+        model: selectedModel || defaultModels[provider],
+        url: provider === 'openrouter' 
+          ? 'https://openrouter.ai/api/v1/chat/completions'
+          : 'https://api.openai.com/v1/chat/completions'
+      });
 
       // URL de l'API en fonction du fournisseur
       const apiUrl = provider === 'openrouter' 
@@ -1012,6 +1091,36 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                 </button>
               </div>
               
+              {/* Sélecteur de modèle */}
+              <div className="p-4 border-b border-gray-700">
+                <label htmlFor="model-select" className="block text-sm font-medium text-gray-300 mb-2">
+                  Modèle IA
+                </label>
+                <div className="relative">
+                  <select
+                    id="model-select"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+                  >
+                    {apiProvider && availableModels[apiProvider]?.map((model) => (
+                      <option 
+                        key={model.id} 
+                        value={model.id}
+                        className={`${model.freeTier ? 'text-green-300' : 'text-yellow-300'}`}
+                      >
+                        {model.name} {model.freeTier ? '(Gratuit)' : '(Premium)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedModel && (
+                  <div className="mt-2 text-xs text-gray-400">
+                    {availableModels[apiProvider || 'openai'].find(m => m.id === selectedModel)?.description}
+                  </div>
+                )}
+              </div>
+
               <div className="divide-y divide-gray-700">
                 {conversations.map(conversation => (
                   <div 

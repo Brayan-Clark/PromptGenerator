@@ -112,9 +112,12 @@ const Settings: React.FC<SettingsProps> = ({
   // Valider la clé API
   const validateApiKey = async (key: string, provider: ApiProvider = apiProvider): Promise<{ isValid: boolean; message?: string }> => {
     console.log(`[DEBUG] Début de validation pour le fournisseur: ${provider}`);
-    console.log(`[DEBUG] Clé fournie: ${key.substring(0, 5)}...${key.substring(key.length - 3)}`);
     
-    if (!key) {
+    // Masquage partiel de la clé pour les logs
+    const maskedKey = key ? `${key.substring(0, 5)}...${key.substring(key.length - 3)}` : 'none';
+    console.log(`[DEBUG] Clé fournie: ${maskedKey}`);
+    
+    if (!key?.trim()) {
       console.log('[DEBUG] Aucune clé fournie');
       setIsValidKey(null);
       return { isValid: false, message: 'Aucune clé fournie' };
@@ -124,24 +127,22 @@ const Settings: React.FC<SettingsProps> = ({
     console.log('[DEBUG] Validation en cours...');
     
     try {
+      // Validation du format basique
+      const isValidFormat = /^sk-[a-zA-Z0-9-]{10,300}$/.test(key.trim());
+      console.log(`[DEBUG] Format de la clé valide: ${isValidFormat}`);
+      
+      if (!isValidFormat) {
+        const message = 'Format de clé invalide. La clé doit commencer par "sk-" suivie de caractères alphanumériques et tirets.';
+        console.error(message);
+        setIsValidKey(false);
+        return { isValid: false, message };
+      }
+      
+      // Vérification via l'API si nécessaire
       if (provider === 'openai') {
-        // Vérification du format de base de la clé OpenAI
-        console.log('[DEBUG] Vérification du format de la clé OpenAI');
-        const openAiKeyPattern = /^sk-[a-zA-Z0-9]{20,100}$/;
-        const isFormatValid = openAiKeyPattern.test(key);
-        console.log(`[DEBUG] Format de la clé valide: ${isFormatValid}`);
-        
-        if (!isFormatValid) {
-          const message = 'Format de clé OpenAI invalide. La clé doit commencer par "sk-" suivie de caractères alphanumériques.';
-          console.error(message);
-          setIsValidKey(false);
-          return { isValid: false, message };
-        }
-        
-        // Vérification via l'API OpenAI
+        console.log('[DEBUG] Vérification de la clé via l\'API...');
         try {
-          console.log('[DEBUG] Vérification de la clé via l\'API OpenAI...');
-          // Utilisation de l'endpoint /models qui est plus fiable pour la validation
+          // Utilisation de l'endpoint /models pour la validation
           const response = await fetch('https://api.openai.com/v1/models', {
             method: 'GET',
             headers: { 
@@ -219,7 +220,7 @@ const Settings: React.FC<SettingsProps> = ({
       } else if (provider === 'openrouter') {
         // Validation du format pour OpenRouter
         console.log('[DEBUG] Vérification du format de la clé OpenRouter');
-        const openRouterKeyPattern = /^sk-or-[a-zA-Z0-9]{32,}$/;
+        const openRouterKeyPattern = /^sk-or(-v1)?-[a-zA-Z0-9]{32,}$/;
         const isFormatValid = openRouterKeyPattern.test(key);
         console.log(`[DEBUG] Format de la clé valide: ${isFormatValid}`);
         
